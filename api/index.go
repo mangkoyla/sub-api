@@ -1,20 +1,18 @@
-package main
+package handler
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 
-	"github.com/mangkoyla/sub-api/converter"
 	_ "github.com/lib/pq"
+	"github.com/mangkoyla/sub-api/converter"
 )
 
 var db *sql.DB
 
-func main() {
+func Handler(w http.ResponseWriter, r *http.Request) {
 	var err error
 	db, err = sql.Open("postgres", os.Getenv("DB_URL"))
 	if err != nil {
@@ -23,31 +21,21 @@ func main() {
 	}
 	defer db.Close()
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			format := r.URL.Query().Get("format")
-			switch format {
-			case "raw":
-				handleRaw(w, r)
-			case "clash":
-				handleClash(w, r)
-			default:
-				http.Error(w, "Invalid format parameter", http.StatusBadRequest)
-				return
-			}
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-	})
-
-	PORT := os.Getenv("PORT")
-	if PORT == "" {
-		PORT = "3000"
+	format := r.URL.Query().Get("format")
+	if format == "" {
+		fmt.Println("Tolong masukkan parameter format")
+		return
 	}
-	fmt.Printf("Server running at http://localhost:%s/\n", PORT)
-	http.ListenAndServe(":"+PORT, nil)
+
+	switch format {
+	case "raw":
+		handleRaw(w, r)
+	case "clash":
+		handleClash(w, r)
+	default:
+		http.Error(w, "Invalid format parameter", http.StatusBadRequest)
+		return
+	}
 }
 
 func handleRaw(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +57,7 @@ func handleClash(w http.ResponseWriter, r *http.Request) {
 }
 
 func fetchAccountsFromDB() []interface{} {
-	rows, err := db.Query("SELECT * FROM proxies") // Sesuaikan dengan query yang sesuai
+	rows, err := db.Query("SELECT * FROM proxies")
 	if err != nil {
 		fmt.Println("Error fetching accounts from database:", err)
 		return nil
@@ -78,8 +66,8 @@ func fetchAccountsFromDB() []interface{} {
 
 	var accounts []interface{}
 	for rows.Next() {
-		var account interface{} // Ganti dengan tipe data yang sesuai dengan struktur akun Anda
-		err := rows.Scan(&account) // Sesuaikan dengan struktur akun Anda
+		var account interface{}
+		err := rows.Scan(&account)
 		if err != nil {
 			fmt.Println("Error scanning account from database:", err)
 			continue
